@@ -12,7 +12,6 @@ body{font-family:-apple-system,'Noto Sans KR',sans-serif;background:#f5f4f0;colo
 .topbar-logo{height:36px;object-fit:contain}
 .topbar-center{position:absolute;left:50%;transform:translateX(-50%);text-align:center}
 .topbar-center h1{font-size:17px;font-weight:500}
-.topbar-center .sub2{font-size:11px;color:#888780;margin-top:2px}
 .topbar .sub{font-size:12px;color:#888780}
 .cat-switch{display:flex;gap:0;background:#fff;padding:0 24px;border-bottom:.5px solid #e0dfd8;position:sticky;top:49px;z-index:100}
 .cat-btn{padding:12px 24px;font-size:14px;cursor:pointer;border-bottom:3px solid transparent;color:#5f5e5a;font-weight:500;transition:.15s}
@@ -440,7 +439,7 @@ function buildRankingSection(cat, containerId){
 
   // compute scores
   const scored = stores.map(s=>{
-    const cs = csScores[key(s.code)] || 1;
+    const cs = csScores[key(s.code)] || 3;
     const debt = calcDebtScore(s.ratio);
     const csP = calcCsScore(cs);
     const total = debt + csP;
@@ -515,7 +514,7 @@ function filterRank(cat, dept, el){
   const stores = getAllStores(cat);
   const key = (code)=> cat+'-'+code;
   const scored = stores.map(s=>{
-    const cs = csScores[key(s.code)] || 1;
+    const cs = csScores[key(s.code)] || 3;
     const debt = calcDebtScore(s.ratio);
     const csP = calcCsScore(cs);
     return {...s, cs, debt, csP, total: debt+csP};
