@@ -477,8 +477,11 @@ function buildRankingSection(cat, containerId){
 
   return `
   <div class="rank-section">
-    <div class="rank-section-title">📊 ${cat} 종합순위 (${scored.length}개 대리점)</div>
-    <p class="rank-notice">💡 CS 마인드 점수를 변경하면 순위가 즉시 재계산됩니다. 담보대비채무 40점 + CS 마인드 60점 = 100점 만점</p>
+    <div class="rank-section-title">
+      <span>📊 ${cat} 종합순위 (${scored.length}개 대리점)</span>
+      <button id="apply-btn-${cat}" onclick="applyRanking('${cat}')" style="font-size:13px;padding:6px 16px;border-radius:999px;border:.5px solid #d3d1c7;background:#fff;cursor:pointer;color:#5f5e5a;transition:.15s">순위 반영하기</button>
+    </div>
+    <p class="rank-notice">💡 CS 마인드 점수를 모두 입력한 후 <strong>순위 반영하기</strong> 버튼을 클릭하세요. 담보대비채무 40점 + CS 마인드 60점 = 100점 만점</p>
     <div class="dept-filter-bar" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">${filterBtns}</div>
     <div style="overflow-x:auto">
     <table class="rank-table" id="ranktbl-${cat}">
@@ -543,11 +546,17 @@ function filterRank(cat, dept, el){
 }
 
 function updateCS(cat, code, val){
+  // 점수만 저장, 순위는 바꾸지 않음
   csScores[cat+'-'+code] = parseInt(val);
-  // 해당 행의 desc 업데이트
+  // desc만 업데이트
   const descEl = document.getElementById('csdesc-'+cat+'-'+code);
   if(descEl) descEl.textContent = CS_LABELS[parseInt(val)].desc;
-  // 순위 전체 재계산
+  // 변경사항 있음 표시
+  const btn = document.getElementById('apply-btn-'+cat);
+  if(btn){ btn.style.background='#A32D2D'; btn.style.color='#fff'; btn.textContent='⚠️ 순위 반영하기'; }
+}
+
+function applyRanking(cat){
   const container = document.getElementById('ranking-container');
   container.dataset.built = '';
   container.innerHTML = buildRankingSection('의류') + '<div style="height:32px"></div>' + buildRankingSection('용품');
