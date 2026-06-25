@@ -149,7 +149,7 @@ def generate_html(clothing_dash, goods_dash, cs_scores, output_path='index.html'
 
     with open('template.html', encoding='utf-8') as f:
         template = f.read()
-
+cs_scores = {' '.join(k.split()): v for k, v in cs_scores.items()}
     html = (template
             .replace('__CLOTHING_DATA__', clothing_raw)
             .replace('__GOODS_DATA__', goods_raw)
