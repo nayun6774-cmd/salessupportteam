@@ -72,7 +72,7 @@ def fetch_cs_data():
 
     result = {}
     for row in records:
-        name = str(row.get('대리점명', '')).strip()
+        name = ' '.join(str(row.get('대리점명', '')).split())
         keywords = str(row.get('키워드', '')).strip()
         memo = str(row.get('특이사항메모', '')).strip()
         if not name:
