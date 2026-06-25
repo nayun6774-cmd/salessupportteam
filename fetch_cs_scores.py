@@ -60,7 +60,8 @@ def gemini_analyze(store_name, keywords, memo, api_key, debt_info={}):
         res = requests.post(url, json=body, timeout=15)
         data = res.json()
         return data['candidates'][0]['content']['parts'][0]['text'].strip()
-    except Exception:
+    except Exception as e:
+        print(f"Gemini 오류: {e}")
         return f"키워드 [{keywords}] 기반 분석: 복합 이슈 확인 필요"
 def fetch_cs_data(store_debt_map={}):
     api_key = os.environ.get('GEMINI_API_KEY', '')
