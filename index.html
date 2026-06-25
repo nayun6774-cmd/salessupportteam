@@ -120,7 +120,7 @@ tbody tr:hover{background:#f9f8f4}
   <div class="topbar-center">
    <h1>대리점 종합평가</h1>
   </div>
-  <span class="sub">2026.06.24(수) 17:30 업데이트</span>
+  <span class="sub">2026.06.25(목) 10:00 업데이트</span>
 </div>
 
 <div class="layout">
@@ -459,7 +459,7 @@ const CS_LABELS = {
 };
 
 // CS 점수 저장소 (세션 동안 유지)
-const csScores = {};const csSheetData = {};
+const csScores = {};const csSheetData = {"위너스포츠": {"score": 50, "keywords": "", "memo": "", "ai_comment": " 키워드 기반 분석: 담당자 확인 필요"}, "세영스포츠": {"score": 50, "keywords": "", "memo": "", "ai_comment": " 키워드 기반 분석: 담당자 확인 필요"}, "스매싱스포츠": {"score": 50, "keywords": "", "memo": "", "ai_comment": " 키워드 기반 분석: 담당자 확인 필요"}};
 Object.entries(csSheetData).forEach(([name, data]) => {
   Object.keys(clothingData).forEach(dept => {
     (clothingData[dept].stores || []).forEach(s => {
