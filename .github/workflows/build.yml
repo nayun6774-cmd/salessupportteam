@@ -5,6 +5,7 @@ on:
       - 'clothing_raw.xls'
       - 'goods_raw.xls'
       - 'template.html'
+      - 'fetch_cs_scores.py'
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
