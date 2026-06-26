@@ -89,7 +89,7 @@ def gemini_analyze(store_name, keywords, memo, api_key, debt_info={}):
 
     body = {"contents": [{"parts": [{"text": prompt}]}]}
     try:
-        res = requests.post(url, json=body, timeout=15)
+        res = requests.post(url, json=body, timeout=30)
         data = res.json()
         candidates = data.get('candidates', [])
         if candidates:
