@@ -40,21 +40,37 @@ def gemini_analyze(store_name, keywords, memo, api_key, debt_info={}):
     ratio = debt_info.get('ratio', 0)
     risk = debt_info.get('risk', '정보없음')
     ratio_pct = int(ratio * 100)
-    col_str = f"{collateral//10000}백만" if collateral else "없음"
-    rec_str = f"{receivable//10000}백만" if receivable else "없음"
-    prompt = f"""당신은 스포츠용품 대리점 채권·CS 리스크 분석 전문가입니다.
-아래 데이터를 바탕으로 실무적인 리스크 분석을 작성해주세요.
+
+    col_str = f"{collateral:,}원 ({collateral//10000:,}만원)" if collateral else "없음"
+    rec_str = f"{receivable:,}원 ({receivable//10000:,}만원)" if receivable else "없음"
+    excess = receivable - collateral
+    excess_str = f"{excess:,}원 ({excess//10000:,}만원)" if excess > 0 else "초과 없음"
+
+    prompt = f"""당신은 스포츠용품 유통사의 대리점 채권·CS 리스크 전담 분석가입니다.
+아래 데이터를 바탕으로 영업팀 관리자가 즉시 활용할 수 있는 전문 분석 보고를 작성해주세요.
 
 [채권 현황]
-- 담보금액: {col_str} / 채권잔액: {rec_str} / 초과율: {ratio_pct}% / 위험단계: {risk}
+- 담보금액: {col_str}
+- 채권잔액: {rec_str}
+- 담보초과액: {excess_str}
+- 담보대비 채권비율: {ratio_pct}%
+- 위험단계: {risk}
 
 [CS 현황]
-- 키워드: {keywords}
-- 특이사항: {memo}
+- 키워드: {keywords if keywords else '없음'}
+- 특이사항 메모: {memo if memo else '없음'}
 
-담보 수치와 CS 이슈를 함께 언급하며 2~3문장으로 간결하게 작성하세요.
-구체적 숫자를 포함하고 마지막엔 조치사항을 제시하세요.
-예시: "담보(180백만) 대비 채권(342백만)이 187% 초과 상태로 담보가 부족합니다. 채권 위기단계와 CS 클레임 반복, 담당자 연락두절이 복합적으로 작용하고 있어 즉각적인 현장 방문 및 담보 추가설정 검토가 필요합니다." """
+다음 형식으로 반드시 작성하세요 (각 항목은 줄바꿈으로 구분):
+
+🔴 리스크 요인: (채권 수치와 CS 이슈를 근거로 구체적 위험 요소 서술. 수치 반드시 포함.)
+🟢 긍정 요인: (안정적 요소나 완화 요인이 있으면 서술. 없으면 "해당 없음".)
+📋 권고사항: (담당 영업사원이 취해야 할 즉각적·단기적 조치를 1~2가지 구체적으로 제시.)
+
+조건:
+- 각 항목은 1~2문장으로 간결하되 수치 근거를 포함할 것
+- 실무자가 바로 행동할 수 있는 수준의 구체성
+- 불필요한 인사말, 서론 없이 바로 본문 시작"""
+
     body = {"contents": [{"parts": [{"text": prompt}]}]}
     try:
         res = requests.post(url, json=body, timeout=15)
