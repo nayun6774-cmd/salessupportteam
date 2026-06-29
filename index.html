@@ -494,8 +494,8 @@ function buildAiDash(){
       <div style="height:.5px;background:#e0dfd8;margin:1rem 0"></div>
       <div style="margin-bottom:1rem">
         <div class="sec-label">🤝 CS 평가 (공통)</div>
-        ${kwHtml?`<div style="margin-top:8px"><div style="font-size:12px;color:#888780;margin-bottom:4px">입력 키워드</div><div class="kw-tags">${kwHtml}</div></div>`:''}
-        ${s.memo?`<div style="margin-top:10px"><div style="font-size:12px;color:#888780;margin-bottom:4px">담당자 메모</div><div style="font-size:13px;color:#5f5e5a;line-height:1.6;background:#f5f4f0;padding:10px 12px;border-radius:8px">${s.memo}</div></div>`:''}
+        ${kwHtml?('<div style="margin-top:8px"><div style="font-size:12px;color:#888780;margin-bottom:4px">입력 키워드</div><div class="kw-tags">'+kwHtml+'</div></div>'):''}
+        ${s.memo?('<div style="margin-top:10px"><div style="font-size:12px;color:#888780;margin-bottom:4px">담당자 메모</div><div style="font-size:13px;color:#5f5e5a;line-height:1.6;background:#f5f4f0;padding:10px 12px;border-radius:8px">'+s.memo+'</div></div>'):''}
         ${(!kwHtml&&!s.memo)?'<div style="font-size:13px;color:#b4b2a9;margin-top:8px">메모를 입력하면 표시됩니다.</div>':''}
       </div>
       <div style="background:${aiBoxBg};border-radius:8px;padding:14px 16px;border-left:3px solid ${aiBoxBd}">
