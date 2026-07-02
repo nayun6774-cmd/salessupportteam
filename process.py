@@ -128,8 +128,12 @@ def process_raw(filepath):
     return result
 
 
-def build_group_data(sub):
-    sub = sub[sub['receivable'].abs() > MIN_DISPLAY_THRESHOLD].copy()
+def build_group_data(full_sub):
+    # 요약(담보/채권 합계 등)은 전체 매장 기준으로 계산
+    full_sub = full_sub.copy()
+
+    # 매장 리스트에는 소액(채권 10만원 이하) 매장은 숨김
+    sub = full_sub[full_sub['receivable'].abs() > MIN_DISPLAY_THRESHOLD].copy()
     stores = []
     for _, r in sub.iterrows():
         stores.append({
@@ -148,14 +152,14 @@ def build_group_data(sub):
     stores = sorted(stores, key=lambda x: -x['receivable'])
 
     summary = {
-        'total_collateral': int(sub['collateral'].sum()),
-        'total_receivable': int(sub['receivable'].sum()),
-        'total_excess':     int(sub[sub['excess'] > 0]['excess'].sum()),
-        'risk_counts':      {k: int(v) for k, v in sub['risk'].value_counts().to_dict().items()}
+        'total_collateral': int(full_sub['collateral'].sum()),
+        'total_receivable': int(full_sub['receivable'].sum()),
+        'total_excess':     int(full_sub[full_sub['excess'] > 0]['excess'].sum()),
+        'risk_counts':      {k: int(v) for k, v in full_sub['risk'].value_counts().to_dict().items()}
     }
 
     sp_summary = {}
-    for sp, g in sub.groupby('salesperson'):
+    for sp, g in full_sub.groupby('salesperson'):
         sp_summary[sp] = {
             'collateral': int(g['collateral'].sum()),
             'receivable': int(g['receivable'].sum()),
