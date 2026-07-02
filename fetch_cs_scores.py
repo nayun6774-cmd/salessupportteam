@@ -72,10 +72,10 @@ def score_cs(keywords_str, memo):
 
     for kw in RISK_KEYWORDS['high']:
         if kw in text:
-            score -= 5   # 고위험 -5점
+            score -= 8   # 고위험 -8점
     for kw in RISK_KEYWORDS['mid']:
         if kw in text:
-            score -= 3   # 중위험 -3점
+            score -= 5   # 중위험 -5점
 
     return max(0, score)
 
