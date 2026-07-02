@@ -38,7 +38,7 @@ MIN_DISPLAY_THRESHOLD = 100_000
 # ───────────────────────────────────────────
 
 def deduct_collection_days(days):
-    """회수일 감점 (60일 기준 초과시 감점, 최대 15점)"""
+    """회수일 감점 (60일 기준 초과시 감점, 최대 15점, 카테고리 1개만 있는 대리점용)"""
     try:
         days = float(days)
     except (TypeError, ValueError):
@@ -53,8 +53,24 @@ def deduct_collection_days(days):
         return 15
 
 
+def deduct_collection_days_half(days):
+    """회수일 감점 (최대 8점, 의류+용품 둘 다 있는 대리점의 카테고리별 감점용)"""
+    try:
+        days = float(days)
+    except (TypeError, ValueError):
+        return 0
+    if days <= 60:
+        return 0
+    elif days <= 80:
+        return 3
+    elif days <= 90:
+        return 5
+    else:
+        return 8
+
+
 def deduct_collateral_ratio(collateral, receivable):
-    """담보대비 채권잔액 감점 (최대 15점). classify_risk() 등급 기준(60/100/150%)과 동일하게 정렬."""
+    """담보대비 채권잔액 감점 (최대 15점, 카테고리 1개만 있는 대리점용). classify_risk() 등급 기준(60/100/150%)과 동일하게 정렬."""
     # 무담보 & 채권 없음 → 감점 없음
     if collateral == 0 and receivable <= 0:
         return 0
@@ -70,6 +86,24 @@ def deduct_collateral_ratio(collateral, receivable):
         return 10
     else:                                                # 위기 (150% 초과)
         return 15
+
+
+def deduct_collateral_ratio_half(collateral, receivable):
+    """담보대비 채권잔액 감점 (최대 8점, 의류+용품 둘 다 있는 대리점의 카테고리별 감점용).
+    둘을 합산했을 때 최대 15점(8+8=16→15 캡)이 되도록 절반 스케일."""
+    if collateral == 0 and receivable <= 0:
+        return 0
+    if collateral == 0 and receivable > 0:
+        return 8
+    ratio = receivable / collateral * 100
+    if ratio <= RISK_THRESHOLDS['safe_max'] * 100:
+        return 0
+    elif ratio <= RISK_THRESHOLDS['caution_max'] * 100:
+        return 3
+    elif ratio <= RISK_THRESHOLDS['warning_max'] * 100:
+        return 5
+    else:
+        return 8
 
 
 def classify_risk(collateral, receivable, ratio):
@@ -119,8 +153,12 @@ def process_raw(filepath):
 
     # 감점 계산
     result['deduct_collection'] = result['collection_days'].apply(deduct_collection_days)
+    result['deduct_collection_half'] = result['collection_days'].apply(deduct_collection_days_half)
     result['deduct_collateral'] = result.apply(
         lambda r: deduct_collateral_ratio(r['collateral'], r['receivable']), axis=1
+    )
+    result['deduct_collateral_half'] = result.apply(
+        lambda r: deduct_collateral_ratio_half(r['collateral'], r['receivable']), axis=1
     )
 
     return result
@@ -145,7 +183,9 @@ def build_group_data(full_sub):
             'risk':             r['risk'],
             'collection_days':  int(r['collection_days']),
             'deduct_collection': int(r['deduct_collection']),
+            'deduct_collection_half': int(r['deduct_collection_half']),
             'deduct_collateral': int(r['deduct_collateral']),
+            'deduct_collateral_half': int(r['deduct_collateral_half']),
         })
     stores = sorted(stores, key=lambda x: -x['receivable'])
 
@@ -236,45 +276,93 @@ def main():
         print(f"  {dept}: {len(d['stores'])}개 / 채권 {s['total_receivable']:,} / 초과 {s['total_excess']:,}")
 
     # 대리점별 감점 정보 수집
+    # - 의류/용품 둘 다 있는 대리점: 카테고리별 감점(각 최대 8점)을 합산, 합계 최대 15점 캡 (회수일/담보 각각)
+    # - 한 카테고리만 있는 대리점: 해당 카테고리 감점을 원래 스케일(최대 15점) 그대로 사용
     store_debt_map = {}
     for cat, dash in [('의류', clothing_dash), ('용품', goods_dash)]:
         for dept, data in dash.items():
             for s in data['stores']:
                 name = ' '.join(s['name'].split())
-                if name not in store_debt_map:
-                    store_debt_map[name] = {
-                        'collateral':        s['collateral'],
-                        'receivable':        s['receivable'],
-                        'ratio':             s['ratio'],
-                        'risk':              s['risk'],
-                        'cat':               cat,
-                        'deduct_collection': s['deduct_collection'],
-                        'deduct_collateral': s['deduct_collateral'],
-                        'collection_days':   s['collection_days'],
-                    }
+                entry = store_debt_map.setdefault(name, {
+                    'collateral': 0, 'receivable': 0, 'ratio': 0, 'risk': '해당없음',
+                    'deduct_collateral_clothing': 0, 'deduct_collateral_goods': 0,
+                    'deduct_collateral_single': 0,
+                    'deduct_collection_clothing': 0, 'deduct_collection_goods': 0,
+                    'deduct_collection_single': 0,
+                    'collection_days_clothing': 0, 'collection_days_goods': 0,
+                    'cats_seen': set(),
+                })
+                entry['cats_seen'].add(cat)
+                entry['collateral'] = s['collateral']
+                entry['receivable'] = s['receivable']
+                entry['ratio']      = s['ratio']
+                entry['risk']       = s['risk']
+                entry['cat']        = cat
+                if cat == '의류':
+                    entry['deduct_collateral_clothing'] = s['deduct_collateral_half']
+                    entry['deduct_collection_clothing']  = s['deduct_collection_half']
+                    entry['collection_days_clothing']    = s['collection_days']
                 else:
-                    # 의류+용품 둘 다 있으면 나쁜 쪽 감점 기준
-                    store_debt_map[name]['deduct_collection'] = max(
-                        store_debt_map[name]['deduct_collection'], s['deduct_collection'])
-                    store_debt_map[name]['deduct_collateral'] = max(
-                        store_debt_map[name]['deduct_collateral'], s['deduct_collateral'])
+                    entry['deduct_collateral_goods'] = s['deduct_collateral_half']
+                    entry['deduct_collection_goods']  = s['deduct_collection_half']
+                    entry['collection_days_goods']    = s['collection_days']
+                entry['deduct_collateral_single'] = s['deduct_collateral']
+                entry['deduct_collection_single']  = s['deduct_collection']
+
+    for name, entry in store_debt_map.items():
+        if len(entry['cats_seen']) >= 2:
+            # 의류+용품 둘 다 있음 → 각 카테고리 감점(최대 8점씩) 합산, 합계 최대 15점
+            entry['deduct_collateral'] = min(15, entry['deduct_collateral_clothing'] + entry['deduct_collateral_goods'])
+            entry['deduct_collection'] = min(15, entry['deduct_collection_clothing'] + entry['deduct_collection_goods'])
+            entry['collection_days'] = max(entry['collection_days_clothing'], entry['collection_days_goods'])
+        else:
+            # 카테고리 1개뿐 → 원래 스케일(최대 15점) 그대로, 표시용 분해값도 채워줌
+            entry['deduct_collateral'] = entry['deduct_collateral_single']
+            entry['deduct_collection'] = entry['deduct_collection_single']
+            if '의류' in entry['cats_seen']:
+                entry['deduct_collateral_clothing'] = entry['deduct_collateral_single']
+                entry['deduct_collateral_goods'] = 0
+                entry['deduct_collection_clothing'] = entry['deduct_collection_single']
+                entry['deduct_collection_goods'] = 0
+                entry['collection_days'] = entry['collection_days_clothing']
+            else:
+                entry['deduct_collateral_goods'] = entry['deduct_collateral_single']
+                entry['deduct_collateral_clothing'] = 0
+                entry['deduct_collection_goods'] = entry['deduct_collection_single']
+                entry['deduct_collection_clothing'] = 0
+                entry['collection_days'] = entry['collection_days_goods']
+        del entry['cats_seen']
+        del entry['deduct_collateral_single']
+        del entry['deduct_collection_single']
 
     cs_scores = fetch_cs_data(store_debt_map)
 
     # 감점 정보 병합
     for name, debt in store_debt_map.items():
         if name in cs_scores:
-            cs_scores[name]['deduct_collection'] = debt.get('deduct_collection', 0)
-            cs_scores[name]['deduct_collateral']  = debt.get('deduct_collateral', 0)
-            cs_scores[name]['collection_days']    = debt.get('collection_days', 0)
+            cs_scores[name]['deduct_collection']          = debt.get('deduct_collection', 0)
+            cs_scores[name]['deduct_collection_clothing']  = debt.get('deduct_collection_clothing', 0)
+            cs_scores[name]['deduct_collection_goods']     = debt.get('deduct_collection_goods', 0)
+            cs_scores[name]['deduct_collateral']           = debt.get('deduct_collateral', 0)
+            cs_scores[name]['deduct_collateral_clothing']  = debt.get('deduct_collateral_clothing', 0)
+            cs_scores[name]['deduct_collateral_goods']     = debt.get('deduct_collateral_goods', 0)
+            cs_scores[name]['collection_days']             = debt.get('collection_days', 0)
+            cs_scores[name]['collection_days_clothing']    = debt.get('collection_days_clothing', 0)
+            cs_scores[name]['collection_days_goods']       = debt.get('collection_days_goods', 0)
         else:
             cs_scores[name] = {
                 'score': 20, 'partnership_score': 30,
                 'p_goods': '', 'p_clothing': '',
                 'keywords': '', 'memo': '', 'ai_comment': '',
-                'deduct_collection': debt.get('deduct_collection', 0),
-                'deduct_collateral': debt.get('deduct_collateral', 0),
-                'collection_days':   debt.get('collection_days', 0),
+                'deduct_collection':          debt.get('deduct_collection', 0),
+                'deduct_collection_clothing': debt.get('deduct_collection_clothing', 0),
+                'deduct_collection_goods':    debt.get('deduct_collection_goods', 0),
+                'deduct_collateral':          debt.get('deduct_collateral', 0),
+                'deduct_collateral_clothing': debt.get('deduct_collateral_clothing', 0),
+                'deduct_collateral_goods':    debt.get('deduct_collateral_goods', 0),
+                'collection_days':            debt.get('collection_days', 0),
+                'collection_days_clothing':   debt.get('collection_days_clothing', 0),
+                'collection_days_goods':      debt.get('collection_days_goods', 0),
             }
 
     generate_html(clothing_dash, goods_dash, cs_scores)
